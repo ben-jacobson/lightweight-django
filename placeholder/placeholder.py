@@ -1,6 +1,16 @@
 import os
 import sys
+from io import BytesIO      # BytesIO is a libary for working with IO streams, in this case we're using this creating some binary data
+from PIL import Image, ImageDraw
+
+import hashlib
 from django.conf import settings
+
+from django import forms
+from django.conf.urls import url
+from django.core.cache import cache             # django has a great caching framework built in, very simple to use. To cache something is to save the result of an expensive calculation so that you don’t have to perform the calculation next time. You can cache the output of specific views, you can cache only the pieces that are difficult to produce, or you can cache your entire site.
+from django.core.wsgi import get_wsgi_application
+from django.http import HttpResponse, HttpResponseBadRequest
 
 DEBUG = os.environ.get('DEBUG', 'on') == 'on'
 SECRET_KEY = os.environ.get('SECRET_KEY', 'q$%a_tg%ty(5feo+sy9v$36+ncrupv8tt-9&=a1^l__3&xak@w')
@@ -18,15 +28,6 @@ settings.configure(
     ),
 )
 
-from django import forms
-from django.conf.urls import url
-from django.core.cache import cache             # django has a great caching framework built in, very simple to use. To cache something is to save the result of an expensive calculation so that you don’t have to perform the calculation next time. You can cache the output of specific views, you can cache only the pieces that are difficult to produce, or you can cache your entire site.
-from django.core.wsgi import get_wsgi_application
-from django.http import HttpResponse, HttpResponseBadRequest
-
-from io import BytesIO      # BytesIO is a libary for working with IO streams, in this case we're using this creating some binary data
-from PIL import Image, ImageDraw
-
 class ImageForm(forms.Form):
     ''' Width and Height value is taken from the URL, and is put into a form to make use of in-built validation features '''
     height = forms.IntegerField(min_value=1, max_value=2000)
@@ -37,7 +38,6 @@ class ImageForm(forms.Form):
         height = self.cleaned_data['height']        # once the form is created, we'll have access to this method and the cleaned_data object
         width = self.cleaned_data['width']
         key = '{}.{}.{}'.format(width, height, image_format)        # generate a cache key, depending on the width, height and image_format. That way if we get the same request over and over, we don't generate the new image each time 
-        content = cache.get(key)
 
         content = cache.get(key)                                    # either return None or return the content based on when it was generated last time 
         if content is None:                                         # see if this content exists. If None, this is called a cache-miss, and therefore we want to perform this labour intensive work. 
@@ -57,6 +57,11 @@ class ImageForm(forms.Form):
             cache.set(key, content, 60 * 60)                # cache this content for future use 
         return content    
 
+def generate_etag(request, width, height):                      # etag is some sort of browser cachine capability
+    content = 'Placeholder: {0} x {1}'.format(width, height)
+    return hashlib.sha1(content.encode('utf-8')).hexdigest()
+
+@etag(generate_etag)                                            # decorators modify the function, will run their own code first then run your decorated method second
 def placeholder(request, width, height):
     form = ImageForm({'height': height, 'width': width})        # place this into the form so as to start the validation process 
     if form.is_valid():
@@ -79,3 +84,6 @@ if __name__ == "__main__":
     from django.core.management import execute_from_command_line
     
     execute_from_command_line(sys.argv)
+
+
+# up to pg 23
