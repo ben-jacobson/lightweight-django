@@ -1,20 +1,16 @@
+import hashlib
 import os
 import sys
+
 from io import BytesIO      # BytesIO is a libary for working with IO streams, in this case we're using this creating some binary data
 from PIL import Image, ImageDraw
 
-import hashlib
 from django.conf import settings
-
-from django import forms
-from django.conf.urls import url
-from django.core.cache import cache             # django has a great caching framework built in, very simple to use. To cache something is to save the result of an expensive calculation so that you don’t have to perform the calculation next time. You can cache the output of specific views, you can cache only the pieces that are difficult to produce, or you can cache your entire site.
-from django.core.wsgi import get_wsgi_application
-from django.http import HttpResponse, HttpResponseBadRequest
 
 DEBUG = os.environ.get('DEBUG', 'on') == 'on'
 SECRET_KEY = os.environ.get('SECRET_KEY', 'q$%a_tg%ty(5feo+sy9v$36+ncrupv8tt-9&=a1^l__3&xak@w')
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
+BASE_DIR = os.path.dirname(__file__)
 
 settings.configure(
     DEBUG=DEBUG,
@@ -26,7 +22,27 @@ settings.configure(
         'django.middleware.csrf.CsrfViewMiddleware',
         'django.middleware.clickjacking.XFrameOptionsMiddleware',                           
     ),
+    INSTALLED_APPS=(
+        'django.contrib.staticfiles',
+    ),
+    TEMPLATE_DIRS=(
+        os.path.join(BASE_DIR, 'templates'),
+    ),
+    STATICFILES_DIRS=(
+        os.path.join(BASE_DIR, 'static'),
+    ),
+    STATIC_URL='/static/',    
 )
+
+from django import forms
+from django.conf.urls import url
+from django.conf import settings
+from django.core.cache import cache             # django has a great caching framework built in, very simple to use. To cache something is to save the result of an expensive calculation so that you don’t have to perform the calculation next time. You can cache the output of specific views, you can cache only the pieces that are difficult to produce, or you can cache your entire site.
+from django.core.urlresolvers import reverse
+from django.core.wsgi import get_wsgi_application
+from django.http import HttpResponse, HttpResponseBadRequest
+from django.shortcuts import render
+from django.views.decorators.http import etag
 
 class ImageForm(forms.Form):
     ''' Width and Height value is taken from the URL, and is put into a form to make use of in-built validation features '''
@@ -61,7 +77,7 @@ def generate_etag(request, width, height):                      # etag is some s
     content = 'Placeholder: {0} x {1}'.format(width, height)
     return hashlib.sha1(content.encode('utf-8')).hexdigest()
 
-@etag(generate_etag)                                            # decorators modify the function, will run their own code first then run your decorated method second
+@etag(generate_etag)                                           # decorators modify the function, will run their own code first then run your decorated method second
 def placeholder(request, width, height):
     form = ImageForm({'height': height, 'width': width})        # place this into the form so as to start the validation process 
     if form.is_valid():
@@ -71,7 +87,10 @@ def placeholder(request, width, height):
         return HttpResponseBadRequest('Invalid Image Request')
 
 def index(request):
-    return HttpResponse('Hello World')
+    example = reverse('placeholder', kwargs={'width': 50, 'height':50})
+    context = {'example': request.build_absolute_uri(example)}
+    return render(request, 'home.html', context)
+
 
 urlpatterns = (
     url(r'^image/(?P<width>[0-9]+)x(?P<height>[0-9]+)/$', placeholder, name='placeholder'),
@@ -84,6 +103,3 @@ if __name__ == "__main__":
     from django.core.management import execute_from_command_line
     
     execute_from_command_line(sys.argv)
-
-
-# up to pg 23
