@@ -1,2 +1,4 @@
 hello_world/__pycache__/**
 prototypes/sitebuilder/__pycache__/**
+prototypes/sitebuilder/management/__pycache__/
+prototypes/sitebuilder/management/commands/__pycache__/**
