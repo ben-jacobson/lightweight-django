@@ -1,6 +1,6 @@
 astroid==2.0.4
 autopep8==1.4
-Django==1.7
+Django==1.11.29
 django-appconf==1.0.2
 django-compressor==1.6
 gunicorn==19.9.0
